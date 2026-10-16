@@ -1,13 +1,22 @@
 public class Blackout {
+    private int id;
+    private String date;
+    private String reason;
+
     public Blackout(int id, String date, String reason) {
+        this.id = id;
+        this.date = date;
+        this.reason = reason;
     }
 
-    public int getId() { return 0; }
-    public String getDate() { return "none"; }
-    public String getReason() { return "none"; }
+    public int getId() { return id; }
+    public String getDate() { return date; }
+    public String getReason() { return reason; }
 
-    public void setDate(String date) { }
-    public void setReason(String reason) { }
+    public void setDate(String date) { this.date = date; }
+    public void setReason(String reason) { this.reason = reason; }
 
-    public String toFileLine() { return "none"; }
+    public String toFileLine() {
+        return id + ";" + date + ";" + reason;
+    }
 }
