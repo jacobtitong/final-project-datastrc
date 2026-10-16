@@ -3,13 +3,30 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 
 public class DataManager {
     private static ArrayList<Setting> settings = new ArrayList<Setting>();
     private static ArrayList<User> users = new ArrayList<User>();
+    private static ArrayList<Venue> venues = new ArrayList<Venue>();
+    private static ArrayList<Event> events = new ArrayList<Event>();
+    private static ArrayList<Request> requests = new ArrayList<Request>();
+    private static ArrayList<StatusLog> statusLogs = new ArrayList<StatusLog>();
+    private static ArrayList<Blackout> blackouts = new ArrayList<Blackout>();
+    private static RequestQueue queue = new RequestQueue();
+    private static DecisionStack decisionStack = new DecisionStack();
 
     public static void loadAll() {
+        loadSettings();
+        loadUsers();
+        loadVenues();
+        loadEvents();
+        loadRequests();
+        loadStatusLogs();
+        loadBlackouts();
+        rebuildQueue();
     }
 
     public static ArrayList<User> getUsers() {
@@ -17,23 +34,23 @@ public class DataManager {
     }
 
     public static ArrayList<Venue> getVenues() {
-        return new ArrayList<Venue>();
+        return venues;
     }
 
     public static ArrayList<Event> getEvents() {
-        return new ArrayList<Event>();
+        return events;
     }
 
     public static ArrayList<Request> getRequests() {
-        return new ArrayList<Request>();
+        return requests;
     }
 
     public static ArrayList<StatusLog> getStatusLogs() {
-        return new ArrayList<StatusLog>();
+        return statusLogs;
     }
 
     public static ArrayList<Blackout> getBlackouts() {
-        return new ArrayList<Blackout>();
+        return blackouts;
     }
 
     public static ArrayList<Setting> getSettings() {
@@ -195,53 +212,270 @@ public class DataManager {
         }
     }
 
+    // ----- Venues and blackouts -----
+    private static void loadVenues() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("venues.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    venues.add(new Venue(Integer.parseInt(p[0]), p[1], Integer.parseInt(p[2]), p[3], p[4].equals("true")));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in venues.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in venues.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveVenues();
+        }
+    }
+
     public static void saveVenues() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("venues.txt"));
+            for (Venue v : venues) {
+                pw.println(v.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save venues.txt");
+        }
+    }
+
+    private static void loadBlackouts() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("blackouts.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    blackouts.add(new Blackout(Integer.parseInt(p[0]), p[1], p[2]));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in blackouts.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in blackouts.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveBlackouts();
+        }
     }
 
     public static void saveBlackouts() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("blackouts.txt"));
+            for (Blackout b : blackouts) {
+                pw.println(b.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save blackouts.txt");
+        }
+    }
+
+    // ----- Events, requests and the queue -----
+    private static void loadEvents() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("events.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    Event ev = new Event(p[2], p[3], p[4], Integer.parseInt(p[5]), p[6], p[7], p[8], p[9],
+                            Integer.parseInt(p[0]), Integer.parseInt(p[1]), p[10]);
+                    events.add(ev);
+                    addToVenueList(ev);
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in events.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in events.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveEvents();
+        }
+    }
+
+    private static void addToVenueList(Event ev) {
+        if (ev.getStatus().equals("Approved")) {
+            Venue venue = findVenueById(ev.getVenueId());
+            if (venue == null) {
+                System.out.println("Warning: event " + ev.getId() + " has an unknown venue");
+            } else {
+                ArrayList<Event> list = venue.getApprovedEvents();
+                int index = SearchHelper.lowerBound(list, ev.getDate() + " " + ev.getStartTime());
+                list.add(index, ev);
+            }
+        }
     }
 
     public static void saveEvents() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("events.txt"));
+            for (Event e : events) {
+                pw.println(e.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save events.txt");
+        }
+    }
+
+    private static void loadRequests() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("requests.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    requests.add(new Request(p[2], p[3], p[4], Integer.parseInt(p[7]), p[8], p[9], p[10], p[11],
+                            Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[6]), p[5], p[12], p[13]));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in requests.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in requests.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveRequests();
+        }
     }
 
     public static void saveRequests() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("requests.txt"));
+            for (Request r : requests) {
+                pw.println(r.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save requests.txt");
+        }
+    }
+
+    private static void rebuildQueue() {
+        queue = new RequestQueue();
+        for (Request r : requests) {
+            if (r.getStatus().equals("Pending")) {
+                queue.enqueue(r);
+            }
+        }
     }
 
     public static RequestQueue getQueue() {
-        return null;
+        return queue;
     }
 
     public static DecisionStack getDecisionStack() {
-        return null;
+        return decisionStack;
+    }
+
+    // ----- Status log and timestamp -----
+    private static void loadStatusLogs() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("status_log.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    statusLogs.add(new StatusLog(Integer.parseInt(p[0]), p[1], p[2], p[3], Integer.parseInt(p[4]), p[5]));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in status_log.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in status_log.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveStatusLogs();
+        }
     }
 
     public static void saveStatusLogs() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("status_log.txt"));
+            for (StatusLog log : statusLogs) {
+                pw.println(log.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save status_log.txt");
+        }
     }
 
     public static void addStatusLog(int requestId, String oldStatus, String newStatus, int actorId, String remarks) {
+        statusLogs.add(new StatusLog(requestId, timestamp(), oldStatus, newStatus, actorId, remarks));
+        saveStatusLogs();
     }
 
     public static String timestamp() {
-        return "none";
+        LocalTime now = LocalTime.now();
+        return LocalDate.now().toString() + " " + String.format("%02d:%02d", now.getHour(), now.getMinute());
     }
 
+    // ----- Find methods (return null if absent) -----
     public static Venue findVenueById(int id) {
+        for (Venue v : venues) {
+            if (v.getId() == id) {
+                return v;
+            }
+        }
         return null;
     }
 
     public static Request findRequestById(int id) {
+        for (Request r : requests) {
+            if (r.getId() == id) {
+                return r;
+            }
+        }
         return null;
     }
 
     public static Event findEventById(int id) {
-        return null;
+        int index = SearchHelper.findEventIndex(events, id);
+        if (index == -1) {
+            return null;
+        }
+        return events.get(index);
     }
 
     public static User findUserById(int id) {
+        for (User u : users) {
+            if (u.getId() == id) {
+                return u;
+            }
+        }
         return null;
     }
 
     public static User findUserByEmail(String email) {
+        for (User u : users) {
+            if (u.getEmail().equalsIgnoreCase(email)) {
+                return u;
+            }
+        }
         return null;
     }
 }
