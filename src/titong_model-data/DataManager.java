@@ -9,7 +9,11 @@ public class DataManager {
     private static ArrayList<Setting> settings = new ArrayList<Setting>();
     private static ArrayList<User> users = new ArrayList<User>();
     private static ArrayList<Venue> venues = new ArrayList<Venue>();
+    private static ArrayList<Event> events = new ArrayList<Event>();
+    private static ArrayList<Request> requests = new ArrayList<Request>();
     private static ArrayList<Blackout> blackouts = new ArrayList<Blackout>();
+    private static RequestQueue queue = new RequestQueue();
+    private static DecisionStack decisionStack = new DecisionStack();
 
     public static void loadAll() {
     }
@@ -23,11 +27,11 @@ public class DataManager {
     }
 
     public static ArrayList<Event> getEvents() {
-        return new ArrayList<Event>();
+        return events;
     }
 
     public static ArrayList<Request> getRequests() {
-        return new ArrayList<Request>();
+        return requests;
     }
 
     public static ArrayList<StatusLog> getStatusLogs() {
@@ -268,18 +272,109 @@ public class DataManager {
         }
     }
 
+    // ----- Events, requests and the queue -----
+    private static void loadEvents() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("events.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    Event ev = new Event(p[2], p[3], p[4], Integer.parseInt(p[5]), p[6], p[7], p[8], p[9],
+                            Integer.parseInt(p[0]), Integer.parseInt(p[1]), p[10]);
+                    events.add(ev);
+                    addToVenueList(ev);
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in events.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in events.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveEvents();
+        }
+    }
+
+    private static void addToVenueList(Event ev) {
+        if (ev.getStatus().equals("Approved")) {
+            Venue venue = findVenueById(ev.getVenueId());
+            if (venue == null) {
+                System.out.println("Warning: event " + ev.getId() + " has an unknown venue");
+            } else {
+                ArrayList<Event> list = venue.getApprovedEvents();
+                int index = SearchHelper.lowerBound(list, ev.getDate() + " " + ev.getStartTime());
+                list.add(index, ev);
+            }
+        }
+    }
+
     public static void saveEvents() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("events.txt"));
+            for (Event e : events) {
+                pw.println(e.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save events.txt");
+        }
+    }
+
+    private static void loadRequests() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("requests.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    requests.add(new Request(p[2], p[3], p[4], Integer.parseInt(p[7]), p[8], p[9], p[10], p[11],
+                            Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[6]), p[5], p[12], p[13]));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in requests.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in requests.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveRequests();
+        }
     }
 
     public static void saveRequests() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("requests.txt"));
+            for (Request r : requests) {
+                pw.println(r.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save requests.txt");
+        }
+    }
+
+    private static void rebuildQueue() {
+        queue = new RequestQueue();
+        for (Request r : requests) {
+            if (r.getStatus().equals("Pending")) {
+                queue.enqueue(r);
+            }
+        }
     }
 
     public static RequestQueue getQueue() {
-        return null;
+        return queue;
     }
 
     public static DecisionStack getDecisionStack() {
-        return null;
+        return decisionStack;
     }
 
     public static void saveStatusLogs() {
@@ -292,7 +387,13 @@ public class DataManager {
         return "none";
     }
 
+    // ----- Find methods (return null if absent) -----
     public static Venue findVenueById(int id) {
+        for (Venue v : venues) {
+            if (v.getId() == id) {
+                return v;
+            }
+        }
         return null;
     }
 
