@@ -1,0 +1,10 @@
+{
+  "java.project.sourcePaths": [
+    "src/titong_model-data",
+    "src/barbin_queue-stack",
+    "src/deleon_sorting-searching",
+    "src/inandan_requests-dates",
+    "src/silang_menus-calendar"
+  ],
+  "java.project.outputPath": "out"
+}
