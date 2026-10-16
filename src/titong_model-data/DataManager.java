@@ -3,6 +3,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 
 public class DataManager {
@@ -11,11 +13,20 @@ public class DataManager {
     private static ArrayList<Venue> venues = new ArrayList<Venue>();
     private static ArrayList<Event> events = new ArrayList<Event>();
     private static ArrayList<Request> requests = new ArrayList<Request>();
+    private static ArrayList<StatusLog> statusLogs = new ArrayList<StatusLog>();
     private static ArrayList<Blackout> blackouts = new ArrayList<Blackout>();
     private static RequestQueue queue = new RequestQueue();
     private static DecisionStack decisionStack = new DecisionStack();
 
     public static void loadAll() {
+        loadSettings();
+        loadUsers();
+        loadVenues();
+        loadEvents();
+        loadRequests();
+        loadStatusLogs();
+        loadBlackouts();
+        rebuildQueue();
     }
 
     public static ArrayList<User> getUsers() {
@@ -35,7 +46,7 @@ public class DataManager {
     }
 
     public static ArrayList<StatusLog> getStatusLogs() {
-        return new ArrayList<StatusLog>();
+        return statusLogs;
     }
 
     public static ArrayList<Blackout> getBlackouts() {
@@ -377,14 +388,50 @@ public class DataManager {
         return decisionStack;
     }
 
+    // ----- Status log and timestamp -----
+    private static void loadStatusLogs() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("status_log.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    statusLogs.add(new StatusLog(Integer.parseInt(p[0]), p[1], p[2], p[3], Integer.parseInt(p[4]), p[5]));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in status_log.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in status_log.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveStatusLogs();
+        }
+    }
+
     public static void saveStatusLogs() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("status_log.txt"));
+            for (StatusLog log : statusLogs) {
+                pw.println(log.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save status_log.txt");
+        }
     }
 
     public static void addStatusLog(int requestId, String oldStatus, String newStatus, int actorId, String remarks) {
+        statusLogs.add(new StatusLog(requestId, timestamp(), oldStatus, newStatus, actorId, remarks));
+        saveStatusLogs();
     }
 
     public static String timestamp() {
-        return "none";
+        LocalTime now = LocalTime.now();
+        return LocalDate.now().toString() + " " + String.format("%02d:%02d", now.getHour(), now.getMinute());
     }
 
     // ----- Find methods (return null if absent) -----
@@ -398,18 +445,37 @@ public class DataManager {
     }
 
     public static Request findRequestById(int id) {
+        for (Request r : requests) {
+            if (r.getId() == id) {
+                return r;
+            }
+        }
         return null;
     }
 
     public static Event findEventById(int id) {
-        return null;
+        int index = SearchHelper.findEventIndex(events, id);
+        if (index == -1) {
+            return null;
+        }
+        return events.get(index);
     }
 
     public static User findUserById(int id) {
+        for (User u : users) {
+            if (u.getId() == id) {
+                return u;
+            }
+        }
         return null;
     }
 
     public static User findUserByEmail(String email) {
+        for (User u : users) {
+            if (u.getEmail().equalsIgnoreCase(email)) {
+                return u;
+            }
+        }
         return null;
     }
 }
