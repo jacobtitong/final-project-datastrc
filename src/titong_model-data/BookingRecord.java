@@ -46,10 +46,18 @@ public abstract class BookingRecord {
     }
 
     public String getSortKey(String mode) {
+        if (mode.equals("VENUE")) {
+            return getVenueKey();
+        } else if (mode.equals("ORGANIZATION")) {
+            return organization;
+        } else if (mode.equals("STATUS")) {
+            return status;
+        }
+        // "DATETIME" (and any other mode)
         return date + " " + startTime;
     }
 
-    // Name of the venue (looked up by venueId); Step 4 uses it for the VENUE mode
+    // Name of the venue (looked up by venueId)
     public String getVenueKey() {
         Venue venue = DataManager.findVenueById(venueId);
         if (venue == null) {
