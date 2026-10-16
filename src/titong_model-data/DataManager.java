@@ -7,12 +7,13 @@ import java.util.ArrayList;
 
 public class DataManager {
     private static ArrayList<Setting> settings = new ArrayList<Setting>();
+    private static ArrayList<User> users = new ArrayList<User>();
 
     public static void loadAll() {
     }
 
     public static ArrayList<User> getUsers() {
-        return new ArrayList<User>();
+        return users;
     }
 
     public static ArrayList<Venue> getVenues() {
@@ -141,7 +142,57 @@ public class DataManager {
         return id;
     }
 
+    // ----- Users -----
+    private static void loadUsers() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("users.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    int id = Integer.parseInt(p[0]);
+                    boolean active = p[8].equals("true");
+                    if (p[1].equals("ADMIN")) {
+                        users.add(new Admin(id, p[1], p[2], p[3], p[4], p[5], p[6], p[7], active));
+                    } else if (p[1].equals("REQUESTER")) {
+                        users.add(new Requester(id, p[1], p[2], p[3], p[4], p[5], p[6], p[7], active));
+                    } else {
+                        System.out.println("Warning: skipped bad line " + lineNo + " in users.txt");
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in users.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in users.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveUsers();
+        }
+        if (users.size() == 0) {
+            addDefaultAdmin();
+        }
+    }
+
+    private static void addDefaultAdmin() {
+        String email = "admin" + getSettingString("EMAIL_DOMAIN");
+        users.add(new Admin(generateId(), "ADMIN", "none", "Admin", email, "Admin123", "Staff", "none", true));
+        saveUsers();
+    }
+
     public static void saveUsers() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("users.txt"));
+            for (User u : users) {
+                pw.println(u.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save users.txt");
+        }
     }
 
     public static void saveVenues() {
