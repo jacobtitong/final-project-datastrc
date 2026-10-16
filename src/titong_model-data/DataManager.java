@@ -8,6 +8,8 @@ import java.util.ArrayList;
 public class DataManager {
     private static ArrayList<Setting> settings = new ArrayList<Setting>();
     private static ArrayList<User> users = new ArrayList<User>();
+    private static ArrayList<Venue> venues = new ArrayList<Venue>();
+    private static ArrayList<Blackout> blackouts = new ArrayList<Blackout>();
 
     public static void loadAll() {
     }
@@ -17,7 +19,7 @@ public class DataManager {
     }
 
     public static ArrayList<Venue> getVenues() {
-        return new ArrayList<Venue>();
+        return venues;
     }
 
     public static ArrayList<Event> getEvents() {
@@ -33,7 +35,7 @@ public class DataManager {
     }
 
     public static ArrayList<Blackout> getBlackouts() {
-        return new ArrayList<Blackout>();
+        return blackouts;
     }
 
     public static ArrayList<Setting> getSettings() {
@@ -195,10 +197,75 @@ public class DataManager {
         }
     }
 
+    // ----- Venues and blackouts -----
+    private static void loadVenues() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("venues.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    venues.add(new Venue(Integer.parseInt(p[0]), p[1], Integer.parseInt(p[2]), p[3], p[4].equals("true")));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in venues.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in venues.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveVenues();
+        }
+    }
+
     public static void saveVenues() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("venues.txt"));
+            for (Venue v : venues) {
+                pw.println(v.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save venues.txt");
+        }
+    }
+
+    private static void loadBlackouts() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("blackouts.txt"));
+            String line = br.readLine();
+            int lineNo = 1;
+            while (line != null) {
+                try {
+                    String[] p = line.split(";");
+                    blackouts.add(new Blackout(Integer.parseInt(p[0]), p[1], p[2]));
+                } catch (NumberFormatException e) {
+                    System.out.println("Warning: skipped bad line " + lineNo + " in blackouts.txt");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: skipped incomplete line " + lineNo + " in blackouts.txt");
+                }
+                line = br.readLine();
+                lineNo++;
+            }
+            br.close();
+        } catch (IOException e) {
+            saveBlackouts();
+        }
     }
 
     public static void saveBlackouts() {
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter("blackouts.txt"));
+            for (Blackout b : blackouts) {
+                pw.println(b.toFileLine());
+            }
+            pw.close();
+        } catch (IOException e) {
+            System.out.println("Error: could not save blackouts.txt");
+        }
     }
 
     public static void saveEvents() {
