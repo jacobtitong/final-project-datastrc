@@ -88,15 +88,56 @@ public class DateHelper {
     }
 
     public static int toDayNumber(String d) {
-        return 0;
+        String[] p = d.split("-");
+        int y = Integer.parseInt(p[0]);
+        int m = Integer.parseInt(p[1]);
+        int day = Integer.parseInt(p[2]);
+        int total = 0;
+
+        for (int year = 2000; year < y; year++) {
+            if (isLeapYear(year)) {
+                total += 366;
+            } else {
+                total += 365;
+            }
+        }
+        for (int month = 1; month < m; month++) {
+            total += daysInMonth(y, month);
+        }
+        total += day - 1;
+        return total;
     }
 
     public static String fromDayNumber(int n) {
-        return "";
+        int year = 2000;
+        int left = n;
+        boolean yearDone = false;
+
+        while (!yearDone) {
+            int yearDays = 365;
+            if (isLeapYear(year)) {
+                yearDays = 366;
+            }
+            if (left >= yearDays) {
+                left -= yearDays;
+                year++;
+            } else {
+                yearDone = true;
+            }
+        }
+
+        int month = 1;
+        while (left >= daysInMonth(year, month)) {
+            left -= daysInMonth(year, month);
+            month++;
+        }
+        int day = left + 1;
+        return String.format("%04d-%02d-%02d", year, month, day);
     }
 
+    // 0 = Sunday; 2000-01-01 was a Saturday (6)
     public static int dayOfWeek(String d) {
-        return 0;
+        return (toDayNumber(d) + 6) % 7;
     }
 
     public static String today() {
