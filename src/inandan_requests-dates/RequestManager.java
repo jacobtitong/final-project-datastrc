@@ -3,6 +3,7 @@ import java.util.ArrayList;
 public class RequestManager {
 
     public static final String NO_SLOT = "No free slot on this date at this venue.";
+    private static final int MAX_ID = 1000000;
 
     public static Event findConflict(int venueId, String date, int startMin, int endMin, int ignoreEventId) {
         Venue venue = DataManager.findVenueById(venueId);
@@ -121,9 +122,110 @@ public class RequestManager {
     }
 
     public static void editRequest(Requester r) {
+        ArrayList<Request> mine = new ArrayList<Request>();
+        for (int i = 0; i < DataManager.getRequests().size(); i++) {
+            Request q = DataManager.getRequests().get(i);
+            if (q.getRequesterId() == r.getId() && q.getStatus().equals("Pending")) {
+                mine.add(q);
+            }
+        }
+        if (mine.size() == 0) {
+            System.out.println("You have no pending requests to edit.");
+            return;
+        }
+
+        System.out.println("\n=== EDIT A PENDING REQUEST ===");
+        printHeader();
+        for (int i = 0; i < mine.size(); i++) {
+            printRow(mine.get(i).getId(), mine.get(i));
+        }
+        int id = InputHelper.getValidInt("--> Request ID to edit ('back' to cancel): ", 1, MAX_ID);
+        if (id == -1) {
+            return;
+        }
+        Request request = DataManager.findRequestById(id);
+        if (request == null || request.getRequesterId() != r.getId() || !request.getStatus().equals("Pending")) {
+            System.out.println("Error: That is not one of your pending requests.");
+            return;
+        }
+
+        System.out.println("Enter the new details (they replace the old ones).");
+        Request draft = askDetails(r, request.getId());
+        if (draft == null) {
+            return;
+        }
+
+        request.setTitle(draft.getTitle());
+        request.setOrganizer(draft.getOrganizer());
+        request.setPurpose(draft.getPurpose());
+        request.setAttendees(draft.getAttendees());
+        request.setVenueId(draft.getVenueId());
+        request.setDate(draft.getDate());
+        request.setStartTime(draft.getStartTime());
+        request.setEndTime(draft.getEndTime());
+        DataManager.saveRequests();
+        DataManager.addStatusLog(request.getId(), "Pending", "Pending", r.getId(), "Request edited");
+        DataManager.getDecisionStack().clear();
+        System.out.println("Request " + request.getId() + " updated. It keeps its place in the queue.");
     }
 
     public static void cancelRequest(User actor) {
+        ArrayList<Request> mine = new ArrayList<Request>();
+        for (int i = 0; i < DataManager.getRequests().size(); i++) {
+            Request q = DataManager.getRequests().get(i);
+            if (q.getRequesterId() == actor.getId() && (q.getStatus().equals("Pending") || q.getStatus().equals("Approved"))) {
+                mine.add(q);
+            }
+        }
+        if (mine.size() == 0) {
+            System.out.println("You have no requests that can be cancelled.");
+            return;
+        }
+
+        System.out.println("\n=== CANCEL A REQUEST ===");
+        printHeader();
+        for (int i = 0; i < mine.size(); i++) {
+            printRow(mine.get(i).getId(), mine.get(i));
+        }
+        int id = InputHelper.getValidInt("--> Request ID to cancel ('back' to go back): ", 1, MAX_ID);
+        if (id == -1) {
+            return;
+        }
+        Request request = DataManager.findRequestById(id);
+        if (request == null || request.getRequesterId() != actor.getId()
+                || !(request.getStatus().equals("Pending") || request.getStatus().equals("Approved"))) {
+            System.out.println("Error: That is not one of your requests that can be cancelled.");
+            return;
+        }
+
+        Event event = null;
+        if (request.getStatus().equals("Approved")) {
+            event = findApprovedEventOf(request.getId());
+            if (event == null) {
+                System.out.println("Error: The approved event for this request was not found.");
+                return;
+            }
+            if (DateHelper.toDayNumber(event.getDate()) <= DateHelper.toDayNumber(DateHelper.today())) {
+                System.out.println("Error: Only events dated after today can be cancelled.");
+                return;
+            }
+        }
+
+        if (!InputHelper.getYesNo("Cancel request " + request.getId() + "? (Y/N): ")) {
+            System.out.println("Nothing was cancelled.");
+            return;
+        }
+
+        if (event == null) {
+            request.setStatus("Cancelled");
+            DataManager.getQueue().remove(request.getId());
+            DataManager.saveRequests();
+            DataManager.addStatusLog(request.getId(), "Pending", "Cancelled", actor.getId(), "none");
+            DataManager.getDecisionStack().clear();
+        } else {
+            cancelApprovedEvent(event, actor.getId(), "none");
+        }
+        System.out.println("Request " + request.getId() + " cancelled.");
     }
 
     public static void reviewQueue(Admin a) {
@@ -384,5 +486,64 @@ public class RequestManager {
             }
         }
         return draft;
+    }
+
+    private static void printHeader() {
+        System.out.println("------------------------------------------------------------------------------------------------------------");
+        System.out.printf("%-5s | %-25s | %-15s | %-15s | %-10s | %-11s | %-9s%n",
+                "ID", "Title", "Organizer", "Venue", "Date", "Time", "Status");
+        System.out.println("------------------------------------------------------------------------------------------------------------");
+    }
+
+    private static void printRow(int id, BookingRecord b) {
+        String venueName = "Unknown";
+        Venue venue = DataManager.findVenueById(b.getVenueId());
+        if (venue != null) {
+            venueName = venue.getName();
+        }
+        System.out.printf("%-5d | %-25.25s | %-15.15s | %-15.15s | %-10s | %-11s | %-9.9s%n",
+                id, b.getTitle(), b.getOrganizer(), venueName, b.getDate(),
+                b.getStartTime() + "-" + b.getEndTime(), b.getStatus());
+    }
+
+    // the Approved event created from this request, or null
+    private static Event findApprovedEventOf(int requestId) {
+        for (int i = 0; i < DataManager.getEvents().size(); i++) {
+            Event e = DataManager.getEvents().get(i);
+            if (e.getRequestId() == requestId && e.getStatus().equals("Approved")) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    private static void removeFromVenueList(Event event) {
+        Venue venue = DataManager.findVenueById(event.getVenueId());
+        if (venue == null) {
+            return;
+        }
+        ArrayList<Event> list = venue.getApprovedEvents();
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).getId() == event.getId()) {
+                list.remove(i);
+                return;
+            }
+        }
+    }
+
+    // shared by Requester cancel and Admin cancel: event and request become Cancelled, DecisionStack is cleared
+    private static void cancelApprovedEvent(Event event, int actorId, String reason) {
+        event.setStatus("Cancelled");
+        event.setCancelReason(reason);
+        removeFromVenueList(event);
+
+        Request request = DataManager.findRequestById(event.getRequestId());
+        if (request != null) {
+            request.setStatus("Cancelled");
+        }
+        DataManager.saveEvents();
+        DataManager.saveRequests();
+        DataManager.addStatusLog(event.getRequestId(), "Approved", "Cancelled", actorId, reason);
+        DataManager.getDecisionStack().clear();
     }
 }
