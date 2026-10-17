@@ -241,19 +241,25 @@ public class RequestManager {
 
             Request front = queue.peek();
             showRequestDetails(front, queue.size());
-            System.out.print("\n1 - Approve\n0 - Back\n");
-            int option = InputHelper.getValidInt("--> Option: ", 0, 1);
+            System.out.print("\n1 - Approve\n2 - Reject\n3 - Defer (move to back of the queue)\n0 - Back\n");
+            int option = InputHelper.getValidInt("--> Option: ", 0, 3);
 
             switch (option) {
                 case 1:
                     approveRequest(a, front);
+                    break;
+                case 2:
+                    rejectRequest(a, front);
+                    break;
+                case 3:
+                    deferRequest(queue);
                     break;
                 case 0:
                 case -1:
                     endReview = true;
                     break;
                 default:
-                    System.out.println("Error: Invalid option. Please choose 0-1.");
+                    System.out.println("Error: Invalid option. Please choose 0-3.");
             }
         }
     }
@@ -669,5 +675,35 @@ public class RequestManager {
                 System.out.println("Auto-rejected request " + other.getId() + " (conflicts with the approved event).");
             }
         }
+    }
+
+    private static void rejectRequest(Admin a, Request request) {
+        String reason = InputHelper.getValidText("Reason for rejecting (5-100 characters): ", 5, 100);
+        if (reason == null) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        if (!InputHelper.getYesNo("Reject request " + request.getId() + "? (Y/N): ")) {
+            System.out.println("Nothing was rejected.");
+            return;
+        }
+
+        DataManager.getQueue().dequeue();
+        request.setStatus("Rejected");
+        request.setRejectReason(reason);
+        DataManager.getDecisionStack().push(new Decision(request.getId(), "Rejected", 0));
+        DataManager.saveRequests();
+        DataManager.addStatusLog(request.getId(), "Pending", "Rejected", a.getId(), reason);
+        System.out.println("Request " + request.getId() + " rejected.");
+    }
+
+    private static void deferRequest(RequestQueue queue) {
+        if (queue.size() == 1) {
+            System.out.println("Only one request is in the queue, so nothing changes.");
+            return;
+        }
+        Request request = queue.dequeue();
+        queue.enqueue(request);
+        System.out.println("Request " + request.getId() + " moved to the back of the queue.");
     }
 }
