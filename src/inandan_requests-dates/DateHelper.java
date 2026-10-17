@@ -2,15 +2,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 public class DateHelper {
-
     public static boolean isLeapYear(int y) {
-        if (y % 400 == 0) {
-            return true;
-        }
-        if (y % 100 == 0) {
-            return false;
-        }
-        return y % 4 == 0;
+        return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
     }
 
     public static int daysInMonth(int y, int m) {
@@ -39,103 +32,73 @@ public class DateHelper {
     }
 
     public static boolean isValidDate(String d) {
-        if (d == null) {
+        if (d == null || !d.matches("\\d{4}-\\d{2}-\\d{2}")) {
             return false;
         }
-        if (!d.matches("\\d{4}-\\d{2}-\\d{2}")) {
+        int y = Integer.parseInt(d.substring(0, 4));
+        int m = Integer.parseInt(d.substring(5, 7));
+        int day = Integer.parseInt(d.substring(8, 10));
+        if (m < 1 || m > 12) {
             return false;
         }
-        try {
-            String[] p = d.split("-");
-            int y = Integer.parseInt(p[0]);
-            int m = Integer.parseInt(p[1]);
-            int day = Integer.parseInt(p[2]);
-            if (y < 2000) {
-                return false;   // day numbers start at 2000-01-01
-            }
-            if (m < 1 || m > 12) {
-                return false;
-            }
-            if (day < 1 || day > daysInMonth(y, m)) {
-                return false;
-            }
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        return day >= 1 && day <= daysInMonth(y, m);
     }
 
     public static boolean isValidTime(String t) {
-        if (t == null) {
-            return false;
-        }
-        if (!t.matches("\\d{2}:\\d{2}")) {
-            return false;
-        }
-        int hour = Integer.parseInt(t.substring(0, 2));
-        int minute = Integer.parseInt(t.substring(3, 5));
-        return hour <= 23 && minute <= 59;
+        return t != null && t.matches("([01][0-9]|2[0-3]):[0-5][0-9]");
     }
 
     public static int toMinutes(String t) {
-        int hour = Integer.parseInt(t.substring(0, 2));
-        int minute = Integer.parseInt(t.substring(3, 5));
-        return hour * 60 + minute;
+        int hours = Integer.parseInt(t.substring(0, 2));
+        int minutes = Integer.parseInt(t.substring(3, 5));
+        return hours * 60 + minutes;
     }
 
     public static String toTimeString(int min) {
         return String.format("%02d:%02d", min / 60, min % 60);
     }
 
+    // Days since 2000-01-01 (day 0); dates before the year 2000 are not supported
     public static int toDayNumber(String d) {
-        String[] p = d.split("-");
-        int y = Integer.parseInt(p[0]);
-        int m = Integer.parseInt(p[1]);
-        int day = Integer.parseInt(p[2]);
+        int year = Integer.parseInt(d.substring(0, 4));
+        int month = Integer.parseInt(d.substring(5, 7));
+        int day = Integer.parseInt(d.substring(8, 10));
         int total = 0;
 
-        for (int year = 2000; year < y; year++) {
-            if (isLeapYear(year)) {
-                total += 366;
-            } else {
-                total += 365;
-            }
+        for (int y = 2000; y < year; y++) {
+            total += daysInYear(y);
         }
-        for (int month = 1; month < m; month++) {
-            total += daysInMonth(y, month);
+        for (int m = 1; m < month; m++) {
+            total += daysInMonth(year, m);
         }
-        total += day - 1;
-        return total;
+        return total + day - 1;
     }
 
     public static String fromDayNumber(int n) {
+        int days = n;
         int year = 2000;
-        int left = n;
-        boolean yearDone = false;
 
-        while (!yearDone) {
-            int yearDays = 365;
-            if (isLeapYear(year)) {
-                yearDays = 366;
-            }
-            if (left >= yearDays) {
-                left -= yearDays;
-                year++;
-            } else {
-                yearDone = true;
-            }
+        while (days >= daysInYear(year)) {
+            days -= daysInYear(year);
+            year++;
         }
 
         int month = 1;
-        while (left >= daysInMonth(year, month)) {
-            left -= daysInMonth(year, month);
+        while (days >= daysInMonth(year, month)) {
+            days -= daysInMonth(year, month);
             month++;
         }
-        int day = left + 1;
-        return String.format("%04d-%02d-%02d", year, month, day);
+        return String.format("%04d-%02d-%02d", year, month, days + 1);
     }
 
-    // 0 = Sunday; 2000-01-01 was a Saturday (6)
+    private static int daysInYear(int y) {
+        if (isLeapYear(y)) {
+            return 366;
+        }
+        return 365;
+    }
+
+    // 0 = Sunday ... 6 = Saturday (2000-01-01 was a Saturday)
     public static int dayOfWeek(String d) {
         return (toDayNumber(d) + 6) % 7;
     }
@@ -145,6 +108,7 @@ public class DateHelper {
     }
 
     public static int nowMinutes() {
-        return LocalTime.now().getHour() * 60 + LocalTime.now().getMinute();
+        LocalTime now = LocalTime.now();
+        return now.getHour() * 60 + now.getMinute();
     }
 }
