@@ -265,6 +265,55 @@ public class RequestManager {
     }
 
     public static void undoLastDecision(Admin a) {
+        DecisionStack stack = DataManager.getDecisionStack();
+        if (stack.isEmpty()) {
+            System.out.println("Nothing to undo.");
+            return;
+        }
+
+        RequestQueue queue = DataManager.getQueue();
+        Decision decision = stack.pop();
+        Request request = DataManager.findRequestById(decision.getRequestId());
+        if (request == null) {
+            System.out.println("Error: The request for this decision was not found.");
+            return;
+        }
+
+        if (decision.getType().equals("Approved")) {
+            Event event = DataManager.findEventById(decision.getEventId());
+            if (event != null) {
+                removeFromVenueList(event);
+                int index = SearchHelper.findEventIndex(DataManager.getEvents(), event.getId());
+                if (index != -1) {
+                    DataManager.getEvents().remove(index);
+                }
+                DataManager.saveEvents();
+            }
+
+            request.setStatus("Pending");
+            queue.enqueue(request);
+            DataManager.addStatusLog(request.getId(), "Approved", "Pending", a.getId(), "Decision undone");
+
+            for (int i = 0; i < decision.getAutoRejectedIds().size(); i++) {
+                int id = decision.getAutoRejectedIds().get(i);
+                Request other = DataManager.findRequestById(id);
+                if (other != null) {
+                    other.setStatus("Pending");
+                    other.setRejectReason("none");
+                    queue.enqueue(other);
+                    DataManager.addStatusLog(id, "Rejected", "Pending", a.getId(), "Decision undone");
+                }
+            }
+            System.out.println("Approval of request " + request.getId() + " undone. "
+                    + (1 + decision.getAutoRejectedIds().size()) + " request(s) are back in the queue.");
+        } else {
+            request.setStatus("Pending");
+            request.setRejectReason("none");
+            queue.enqueue(request);
+            DataManager.addStatusLog(request.getId(), "Rejected", "Pending", a.getId(), "Decision undone");
+            System.out.println("Rejection of request " + request.getId() + " undone. It is back in the queue.");
+        }
+        DataManager.saveRequests();
     }
 
     public static void rescheduleEvent(Admin a) {
