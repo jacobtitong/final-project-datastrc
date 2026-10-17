@@ -229,6 +229,33 @@ public class RequestManager {
     }
 
     public static void reviewQueue(Admin a) {
+        RequestQueue queue = DataManager.getQueue();
+        boolean endReview = false;
+
+        while (!endReview) {
+            if (queue.isEmpty()) {
+                System.out.println("The queue is empty. No pending requests to review.");
+                endReview = true;
+                continue;
+            }
+
+            Request front = queue.peek();
+            showRequestDetails(front, queue.size());
+            System.out.print("\n1 - Approve\n0 - Back\n");
+            int option = InputHelper.getValidInt("--> Option: ", 0, 1);
+
+            switch (option) {
+                case 1:
+                    approveRequest(a, front);
+                    break;
+                case 0:
+                case -1:
+                    endReview = true;
+                    break;
+                default:
+                    System.out.println("Error: Invalid option. Please choose 0-1.");
+            }
+        }
     }
 
     public static void undoLastDecision(Admin a) {
@@ -545,5 +572,102 @@ public class RequestManager {
         DataManager.saveRequests();
         DataManager.addStatusLog(event.getRequestId(), "Approved", "Cancelled", actorId, reason);
         DataManager.getDecisionStack().clear();
+    }
+
+    private static String dayName(String date) {
+        String[] names = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+        return names[DateHelper.dayOfWeek(date)];
+    }
+
+    private static void showRequestDetails(Request request, int queueSize) {
+        String venueName = "Unknown";
+        int capacity = 0;
+        Venue venue = DataManager.findVenueById(request.getVenueId());
+        if (venue != null) {
+            venueName = venue.getName();
+            capacity = venue.getCapacity();
+        }
+        String requesterName = "Unknown";
+        User requester = DataManager.findUserById(request.getRequesterId());
+        if (requester != null) {
+            requesterName = requester.getName();
+        }
+
+        System.out.println("\n=== NEXT REQUEST IN THE QUEUE (position 1 of " + queueSize + ") ===");
+        System.out.println("Request ID   : " + request.getId());
+        System.out.println("Title        : " + request.getTitle());
+        System.out.println("Requested by : " + requesterName + " (" + request.getOrganization() + ")");
+        System.out.println("Organizer    : " + request.getOrganizer());
+        System.out.println("Purpose      : " + request.getPurpose());
+        System.out.println("Attendees    : " + request.getAttendees() + " (venue capacity " + capacity + ")");
+        System.out.println("Venue        : " + venueName);
+        System.out.println("Date         : " + request.getDate() + " (" + dayName(request.getDate()) + ")");
+        System.out.println("Time         : " + request.getStartTime() + "-" + request.getEndTime());
+        System.out.println("Submitted    : " + request.getSubmittedAt());
+    }
+
+    // true when two bookings at the same venue and date are closer than the buffer
+    private static boolean isTooClose(int startA, int endA, int startB, int endB, int buffer) {
+        return startA < endB + buffer && endA + buffer > startB;
+    }
+
+    private static void approveRequest(Admin a, Request request) {
+        Venue venue = DataManager.findVenueById(request.getVenueId());
+        if (venue == null) {
+            System.out.println("Error: The venue of this request no longer exists.");
+            return;
+        }
+
+        // the conflict re-check must still pass
+        int startMin = request.getStartMinutes();
+        int endMin = request.getEndMinutes();
+        Event conflict = findConflict(request.getVenueId(), request.getDate(), startMin, endMin, 0);
+        if (conflict != null) {
+            System.out.print("Cannot approve. ");
+            printConflict(conflict, request.getVenueId(), request.getDate(), startMin, endMin);
+            return;
+        }
+
+        DataManager.getQueue().dequeue();
+        request.setStatus("Approved");
+
+        int eventId = DataManager.generateId();
+        Event event = new Event(request.getTitle(), request.getOrganizer(), request.getOrganization(),
+                request.getVenueId(), request.getDate(), request.getStartTime(), request.getEndTime(),
+                "Approved", eventId, request.getId(), "none");
+        DataManager.getEvents().add(event);
+        int idx = SearchHelper.lowerBound(venue.getApprovedEvents(), event.getDate() + " " + event.getStartTime());
+        venue.getApprovedEvents().add(idx, event);
+
+        Decision decision = new Decision(request.getId(), "Approved", eventId);
+        autoRejectConflicts(event, decision, a.getId());
+        DataManager.getDecisionStack().push(decision);
+
+        DataManager.saveEvents();
+        DataManager.saveRequests();
+        DataManager.addStatusLog(request.getId(), "Pending", "Approved", a.getId(), "none");
+        System.out.println("Request " + request.getId() + " approved. Event ID: " + eventId + ".");
+    }
+
+    // rejects every waiting request that now conflicts with the newly approved event
+    private static void autoRejectConflicts(Event event, Decision decision, int actorId) {
+        RequestQueue queue = DataManager.getQueue();
+        int buffer = DataManager.getSettingInt("BUFFER_MIN");
+        ArrayList<Request> waiting = queue.toArrayList();
+
+        for (int i = 0; i < waiting.size(); i++) {
+            Request other = waiting.get(i);
+            if (other.getVenueId() != event.getVenueId() || !other.getDate().equals(event.getDate())) {
+                continue;
+            }
+            if (isTooClose(other.getStartMinutes(), other.getEndMinutes(), event.getStartMinutes(), event.getEndMinutes(), buffer)) {
+                other.setStatus("Rejected");
+                other.setRejectReason("Conflicts with an approved event.");
+                queue.remove(other.getId());
+                DataManager.addStatusLog(other.getId(), "Pending", "Rejected", actorId, "Conflicts with an approved event.");
+                decision.addAutoRejected(other.getId());
+                System.out.println("Auto-rejected request " + other.getId() + " (conflicts with the approved event).");
+            }
+        }
     }
 }
