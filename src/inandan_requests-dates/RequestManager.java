@@ -425,6 +425,51 @@ public class RequestManager {
     }
 
     public static void deactivateUser(User actor) {
+        User target = actor;
+
+        if (actor.getRole().equals("ADMIN")) {
+            System.out.println("\n=== DEACTIVATE A USER ===");
+            System.out.println("-----------------------------------------------------------------------------");
+            System.out.printf("%-5s | %-20s | %-28s | %-15s%n", "ID", "Name", "Email", "Organization");
+            System.out.println("-----------------------------------------------------------------------------");
+            int shown = 0;
+            for (int i = 0; i < DataManager.getUsers().size(); i++) {
+                User u = DataManager.getUsers().get(i);
+                if (u.getRole().equals("REQUESTER") && u.isActive()) {
+                    System.out.printf("%-5d | %-20.20s | %-28.28s | %-15.15s%n",
+                            u.getId(), u.getName(), u.getEmail(), u.getOrganization());
+                    shown++;
+                }
+            }
+            if (shown == 0) {
+                System.out.println("There are no active requester accounts.");
+                return;
+            }
+
+            int id = InputHelper.getValidInt("--> User ID to deactivate ('back' to cancel): ", 1, MAX_ID);
+            if (id == -1) {
+                return;
+            }
+            target = DataManager.findUserById(id);
+            if (target == null || !target.getRole().equals("REQUESTER") || !target.isActive()) {
+                System.out.println("Error: That is not an active requester account.");
+                return;
+            }
+        }
+
+        String question = "Deactivate the account of " + target.getName() + "? (Y/N): ";
+        if (target == actor) {
+            question = "Deactivate your own account? You will not be able to log in again. (Y/N): ";
+        }
+        if (!InputHelper.getYesNo(question)) {
+            System.out.println("Nothing was changed.");
+            return;
+        }
+
+        target.setActive(false);
+        DataManager.saveUsers();
+        DataManager.getDecisionStack().clear();
+        System.out.println("Account deactivated. Their requests and approved events stay.");
     }
 
     // ---------- helpers ----------
