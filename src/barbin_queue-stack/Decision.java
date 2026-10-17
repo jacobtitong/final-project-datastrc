@@ -21,4 +21,16 @@ public class Decision {
     public void addAutoRejected(int requestId) {
         autoRejectedIds.add(requestId);
     }
+
+    public String toFileLine() {
+        String ids = "none";
+        for (int i = 0; i < autoRejectedIds.size(); i++) {
+            if (i == 0) {
+                ids = "" + autoRejectedIds.get(i);
+            } else {
+                ids = ids + "," + autoRejectedIds.get(i);
+            }
+        }
+        return requestId + ";" + type + ";" + eventId + ";" + ids;
+    }
 }
