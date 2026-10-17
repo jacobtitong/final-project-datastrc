@@ -51,11 +51,38 @@ public class RequestQueue {
         return size;
     }
 
+    // Walk the list and unlink the node with this request id
     public boolean remove(int requestId) {
+        QueueNode previous = null;
+        QueueNode current = front;
+
+        while (current != null) {
+            if (current.getData().getId() == requestId) {
+                if (previous == null) {
+                    front = current.getNext();
+                } else {
+                    previous.setNext(current.getNext());
+                }
+                if (current == back) {
+                    back = previous;
+                }
+                size--;
+                return true;
+            }
+            previous = current;
+            current = current.getNext();
+        }
         return false;
     }
 
     public ArrayList<Request> toArrayList() {
-        return new ArrayList<Request>();
+        ArrayList<Request> list = new ArrayList<Request>();
+        QueueNode current = front;
+
+        while (current != null) {
+            list.add(current.getData());
+            current = current.getNext();
+        }
+        return list;
     }
 }
