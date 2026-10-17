@@ -317,9 +317,111 @@ public class RequestManager {
     }
 
     public static void rescheduleEvent(Admin a) {
+        System.out.println("\n=== RESCHEDULE AN EVENT === (type 'back' at any prompt to cancel)");
+        Event event = pickUpcomingEvent("reschedule");
+        if (event == null) {
+            return;
+        }
+        Request request = DataManager.findRequestById(event.getRequestId());
+        if (request == null) {
+            System.out.println("Error: The request for this event was not found.");
+            return;
+        }
+
+        Venue venue = chooseVenue();
+        if (venue == null) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        String date = InputHelper.getValidDate("New date (YYYY-MM-DD): ");
+        if (date == null) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        String startTime = InputHelper.getValidTime("New start time (HH:MM, 24-hour): ");
+        if (startTime == null) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        String endTime = InputHelper.getValidTime("New end time (HH:MM, 24-hour): ");
+        if (endTime == null) {
+            System.out.println("Cancelled.");
+            return;
+        }
+
+        // lead time is not enforced for the Admin
+        String error = checkDate(date, false);
+        if (error == null) {
+            error = checkTimes(date, startTime, endTime);
+        }
+        if (error == null) {
+            error = checkVenueAndAttendees(venue, request.getAttendees());
+        }
+        if (error != null) {
+            System.out.println(error);
+            return;
+        }
+
+        int startMin = DateHelper.toMinutes(startTime);
+        int endMin = DateHelper.toMinutes(endTime);
+        Event conflict = findConflict(venue.getId(), date, startMin, endMin, event.getId());
+        if (conflict != null) {
+            printConflict(conflict, venue.getId(), date, startMin, endMin);
+            return;
+        }
+
+        if (!InputHelper.getYesNo("Move \"" + event.getTitle() + "\" to " + venue.getName() + " on " + date + " " + startTime + "-" + endTime + "? (Y/N): ")) {
+            System.out.println("Nothing was changed.");
+            return;
+        }
+
+        String oldVenueName = "Unknown";
+        Venue oldVenue = DataManager.findVenueById(event.getVenueId());
+        if (oldVenue != null) {
+            oldVenueName = oldVenue.getName();
+        }
+        String remarks = "Rescheduled from " + oldVenueName + " " + event.getDate() + " " + event.getStartTime() + "-" + event.getEndTime()
+                + " to " + venue.getName() + " " + date + " " + startTime + "-" + endTime;
+
+        removeFromVenueList(event);
+        event.setVenueId(venue.getId());
+        event.setDate(date);
+        event.setStartTime(startTime);
+        event.setEndTime(endTime);
+        int idx = SearchHelper.lowerBound(venue.getApprovedEvents(), date + " " + startTime);
+        venue.getApprovedEvents().add(idx, event);
+
+        request.setVenueId(venue.getId());
+        request.setDate(date);
+        request.setStartTime(startTime);
+        request.setEndTime(endTime);
+
+        DataManager.saveEvents();
+        DataManager.saveRequests();
+        DataManager.addStatusLog(request.getId(), "Approved", "Approved", a.getId(), remarks);
+        DataManager.getDecisionStack().clear();
+        System.out.println("Event rescheduled.");
     }
 
     public static void cancelEvent(Admin a) {
+        System.out.println("\n=== CANCEL AN EVENT === (type 'back' at any prompt to cancel)");
+        Event event = pickUpcomingEvent("cancel");
+        if (event == null) {
+            return;
+        }
+
+        String reason = InputHelper.getValidText("Reason for cancelling (5-100 characters): ", 5, 100);
+        if (reason == null) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        if (!InputHelper.getYesNo("Cancel the event \"" + event.getTitle() + "\"? (Y/N): ")) {
+            System.out.println("Nothing was cancelled.");
+            return;
+        }
+
+        cancelApprovedEvent(event, a.getId(), reason);
+        System.out.println("Event cancelled.");
     }
 
     public static void deactivateUser(User actor) {
@@ -754,5 +856,37 @@ public class RequestManager {
         Request request = queue.dequeue();
         queue.enqueue(request);
         System.out.println("Request " + request.getId() + " moved to the back of the queue.");
+    }
+
+    // lists the upcoming Approved events and returns the one the Admin picks, or null
+    private static Event pickUpcomingEvent(String action) {
+        ArrayList<Event> upcoming = new ArrayList<Event>();
+        int todayNumber = DateHelper.toDayNumber(DateHelper.today());
+        for (int i = 0; i < DataManager.getEvents().size(); i++) {
+            Event e = DataManager.getEvents().get(i);
+            if (e.getStatus().equals("Approved") && DateHelper.toDayNumber(e.getDate()) >= todayNumber) {
+                upcoming.add(e);
+            }
+        }
+        if (upcoming.size() == 0) {
+            System.out.println("There are no upcoming approved events.");
+            return null;
+        }
+
+        printHeader();
+        for (int i = 0; i < upcoming.size(); i++) {
+            printRow(upcoming.get(i).getId(), upcoming.get(i));
+        }
+        int id = InputHelper.getValidInt("--> Event ID to " + action + " ('back' to cancel): ", 1, MAX_ID);
+        if (id == -1) {
+            return null;
+        }
+        for (int i = 0; i < upcoming.size(); i++) {
+            if (upcoming.get(i).getId() == id) {
+                return upcoming.get(i);
+            }
+        }
+        System.out.println("Error: That is not an upcoming approved event.");
+        return null;
     }
 }
