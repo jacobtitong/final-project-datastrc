@@ -1,3 +1,6 @@
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 public class DateHelper {
 
     public static boolean isLeapYear(int y) {
@@ -63,15 +66,25 @@ public class DateHelper {
     }
 
     public static boolean isValidTime(String t) {
-        return false;
+        if (t == null) {
+            return false;
+        }
+        if (!t.matches("\\d{2}:\\d{2}")) {
+            return false;
+        }
+        int hour = Integer.parseInt(t.substring(0, 2));
+        int minute = Integer.parseInt(t.substring(3, 5));
+        return hour <= 23 && minute <= 59;
     }
 
     public static int toMinutes(String t) {
-        return 0;
+        int hour = Integer.parseInt(t.substring(0, 2));
+        int minute = Integer.parseInt(t.substring(3, 5));
+        return hour * 60 + minute;
     }
 
     public static String toTimeString(int min) {
-        return "";
+        return String.format("%02d:%02d", min / 60, min % 60);
     }
 
     public static int toDayNumber(String d) {
@@ -87,10 +100,10 @@ public class DateHelper {
     }
 
     public static String today() {
-        return "";
+        return LocalDate.now().toString();
     }
 
     public static int nowMinutes() {
-        return 0;
+        return LocalTime.now().getHour() * 60 + LocalTime.now().getMinute();
     }
 }
