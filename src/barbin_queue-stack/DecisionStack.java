@@ -30,8 +30,6 @@ public class DecisionStack {
     }
 
     public void clear() {
-        while (decisions.size() > 0) {
-            decisions.remove(decisions.size() - 1);
-        }
+        decisions = new ArrayList<Decision>();
     }
 }
