@@ -27,6 +27,30 @@ public class DataManager {
         loadStatusLogs();
         loadBlackouts();
         rebuildQueue();
+        fixNextId();
+    }
+
+    // NEXT_ID must stay above every id in use (settings.txt may have been deleted or edited)
+    private static void fixNextId() {
+        int highest = 0;
+        for (User u : users) {
+            highest = Math.max(highest, u.getId());
+        }
+        for (Venue v : venues) {
+            highest = Math.max(highest, v.getId());
+        }
+        for (Event e : events) {
+            highest = Math.max(highest, e.getId());
+        }
+        for (Request r : requests) {
+            highest = Math.max(highest, r.getId());
+        }
+        for (Blackout b : blackouts) {
+            highest = Math.max(highest, b.getId());
+        }
+        if (getSettingInt("NEXT_ID") <= highest) {
+            setSetting("NEXT_ID", "" + (highest + 1));
+        }
     }
 
     public static ArrayList<User> getUsers() {
@@ -292,6 +316,9 @@ public class DataManager {
             while (line != null) {
                 try {
                     String[] p = line.split(";");
+                    if (!DateHelper.isValidDate(p[6]) || !DateHelper.isValidTime(p[7]) || !DateHelper.isValidTime(p[8])) {
+                        throw new NumberFormatException("bad date or time");
+                    }
                     Event ev = new Event(p[2], p[3], p[4], Integer.parseInt(p[5]), p[6], p[7], p[8], p[9],
                             Integer.parseInt(p[0]), Integer.parseInt(p[1]), p[10]);
                     events.add(ev);
@@ -343,6 +370,9 @@ public class DataManager {
             while (line != null) {
                 try {
                     String[] p = line.split(";");
+                    if (!DateHelper.isValidDate(p[8]) || !DateHelper.isValidTime(p[9]) || !DateHelper.isValidTime(p[10])) {
+                        throw new NumberFormatException("bad date or time");
+                    }
                     requests.add(new Request(p[2], p[3], p[4], Integer.parseInt(p[7]), p[8], p[9], p[10], p[11],
                             Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[6]), p[5], p[12], p[13]));
                 } catch (NumberFormatException e) {

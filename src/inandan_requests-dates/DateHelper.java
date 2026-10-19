@@ -58,7 +58,7 @@ public class DateHelper {
         return String.format("%02d:%02d", min / 60, min % 60);
     }
 
-    // Days since 2000-01-01 (day 0); dates before the year 2000 are not supported
+    // Days since 2000-01-01 (day 0); dates before the year 2000 give negative numbers
     public static int toDayNumber(String d) {
         int year = Integer.parseInt(d.substring(0, 4));
         int month = Integer.parseInt(d.substring(5, 7));
@@ -67,6 +67,9 @@ public class DateHelper {
 
         for (int y = 2000; y < year; y++) {
             total += daysInYear(y);
+        }
+        for (int y = year; y < 2000; y++) {
+            total -= daysInYear(y);
         }
         for (int m = 1; m < month; m++) {
             total += daysInMonth(year, m);
@@ -78,6 +81,10 @@ public class DateHelper {
         int days = n;
         int year = 2000;
 
+        while (days < 0) {
+            year--;
+            days += daysInYear(year);
+        }
         while (days >= daysInYear(year)) {
             days -= daysInYear(year);
             year++;
@@ -100,7 +107,7 @@ public class DateHelper {
 
     // 0 = Sunday ... 6 = Saturday (2000-01-01 was a Saturday)
     public static int dayOfWeek(String d) {
-        return (toDayNumber(d) + 6) % 7;
+        return ((toDayNumber(d) + 6) % 7 + 7) % 7;
     }
 
     public static String today() {

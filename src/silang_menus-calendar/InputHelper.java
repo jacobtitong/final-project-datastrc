@@ -1,7 +1,19 @@
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 public class InputHelper {
     static Scanner sc = new Scanner(System.in);
+
+    // Reads one line; if the input has ended (Ctrl+D / Ctrl+Z) the program closes instead of crashing
+    private static String readLine() {
+        try {
+            return sc.nextLine();
+        } catch (NoSuchElementException e) {
+            System.out.println("\nInput ended. Goodbye!");
+            System.exit(0);
+            return "";
+        }
+    }
 
     // Typing "back" (any case) at a prompt cancels: numbers return -1, text returns null
 
@@ -11,7 +23,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            String input = sc.nextLine().trim();
+            String input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -41,7 +53,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -68,7 +80,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -96,7 +108,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -131,7 +143,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -173,7 +185,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine();
+            input = readLine();
 
             if (input.trim().isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -205,7 +217,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -250,7 +262,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 return "";
@@ -277,7 +289,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -306,7 +318,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -332,7 +344,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -376,7 +388,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = sc.nextLine().trim();
+            input = readLine().trim();
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -393,7 +405,7 @@ public class InputHelper {
     // A line that may be left blank (returns ""); "back" returns null
     public static String getOptionalLine(String prompt) {
         System.out.print(prompt);
-        String input = sc.nextLine().trim();
+        String input = readLine().trim();
 
         if (input.equalsIgnoreCase("back")) {
             return null;
@@ -408,7 +420,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            String input = sc.nextLine().trim();
+            String input = readLine().trim();
 
             if (input.equalsIgnoreCase("y") || input.equalsIgnoreCase("yes")) {
                 answer = true;
