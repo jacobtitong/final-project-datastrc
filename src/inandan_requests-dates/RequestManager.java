@@ -233,6 +233,9 @@ public class RequestManager {
             if (error == null) {
                 error = checkTimes(formStart, formEnd);
             }
+            if (error == null && !isUpcoming(formDate, formStart)) {
+                error = "Error: The start time has already passed.";
+            }
             if (error == null) {
                 error = checkVenue(formVenue, formAttendees);
             }
