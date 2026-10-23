@@ -500,10 +500,23 @@ public class Admin extends User {
     private void changePassword() {
         boolean passwordOk = false;
 
+        String current = InputHelper.getRequiredLine("Current password: ");
+        if (current == null) {
+            return;
+        }
+        if (!current.equals(getPassword())) {
+            System.out.println("Error: The current password is wrong.");
+            return;
+        }
+
         while (!passwordOk) {
             String password = InputHelper.getValidPassword("New password: ", getIdNumber());
             if (password == null) {
                 return;
+            }
+            if (password.equals(getPassword())) {
+                System.out.println("Error: The new password must be different from the current one.");
+                continue;
             }
             String confirm = InputHelper.getRequiredLine("Confirm new password: ");
             if (confirm == null) {

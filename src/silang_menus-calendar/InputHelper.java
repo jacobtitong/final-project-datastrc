@@ -53,7 +53,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = readLine().trim();
+            input = readLine().trim().replaceAll("\\s+", " ");
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -65,8 +65,12 @@ public class InputHelper {
 
             if (input.length() < 2 || input.length() > 40) {
                 System.out.println("Error: A name must be 2 to 40 characters.");
-            } else if (!input.matches("[A-Za-z .\\-]+")) {
-                System.out.println("Error: Use only letters, spaces, hyphens and periods.");
+            } else if (!input.matches("[A-Za-z\u00D1\u00F1 .'\\-]+")) {
+                System.out.println("Error: Use only letters, spaces, hyphens, apostrophes and periods.");
+            } else if (!input.matches(".*[A-Za-z\u00D1\u00F1].*")) {
+                System.out.println("Error: A name must contain at least one letter.");
+            } else if (input.equalsIgnoreCase("none")) {
+                System.out.println("Error: \"none\" cannot be used here.");
             } else {
                 isValid = true;
             }
@@ -80,7 +84,7 @@ public class InputHelper {
 
         while (!isValid) {
             System.out.print(prompt);
-            input = readLine().trim();
+            input = readLine().trim().replaceAll("\\s+", " ");
 
             if (input.isEmpty()) {
                 System.out.println("Error: Input cannot be empty or just spaces.");
@@ -92,8 +96,12 @@ public class InputHelper {
 
             if (input.length() < minLen || input.length() > maxLen) {
                 System.out.println("Error: Please enter " + minLen + " to " + maxLen + " characters.");
-            } else if (!input.matches("[A-Za-z0-9 .,'&()\\-]+")) {
-                System.out.println("Error: Use only letters, digits, spaces and . , - ' & ( )");
+            } else if (!input.matches("[A-Za-z0-9\u00D1\u00F1 .,'&()/:+#\\-]+")) {
+                System.out.println("Error: Use only letters, digits, spaces and . , - ' & ( ) / : + #");
+            } else if (!input.matches(".*[A-Za-z\u00D1\u00F1].*")) {
+                System.out.println("Error: The text must contain at least one letter.");
+            } else if (input.equalsIgnoreCase("none")) {
+                System.out.println("Error: \"none\" cannot be used here.");
             } else {
                 isValid = true;
             }
@@ -125,8 +133,8 @@ public class InputHelper {
             String local = input.substring(0, input.length() - domain.length());
             String ending = input.substring(input.length() - domain.length());
 
-            if (!local.matches("[A-Za-z0-9._]+") || !ending.equalsIgnoreCase(domain)) {
-                System.out.println("Error: An email looks like name" + domain + " (letters, digits, . and _ before the @).");
+            if (!local.matches("[A-Za-z0-9]+([._\\-][A-Za-z0-9]+)*") || !ending.equalsIgnoreCase(domain)) {
+                System.out.println("Error: An email looks like name" + domain + " (letters and digits, with single . _ or - between them).");
             } else if (DataManager.findUserByEmail(input) != null) {
                 System.out.println("Error: That email is already registered.");
             } else {
@@ -155,6 +163,8 @@ public class InputHelper {
 
             if (!input.matches("\\d{" + digits + "}")) {
                 System.out.println("Error: The ID number must be exactly " + digits + " digits.");
+            } else if (input.matches("0+")) {
+                System.out.println("Error: The ID number cannot be all zeros.");
             } else if (idNumberExists(input)) {
                 System.out.println("Error: That ID number is already registered.");
             } else {
@@ -197,12 +207,15 @@ public class InputHelper {
 
             if (input.length() < minLength) {
                 System.out.println("Error: The password must be at least " + minLength + " characters.");
-            } else if (input.contains(" ")) {
-                System.out.println("Error: The password cannot contain spaces.");
+            } else if (input.matches(".*\\s.*")) {
+                System.out.println("Error: The password cannot contain spaces or tabs.");
             } else if (input.contains(";")) {
                 System.out.println("Error: The password cannot contain a semicolon.");
             } else if (input.equals(idNumber)) {
                 System.out.println("Error: The password cannot be the same as your ID number.");
+            } else if (input.matches("(.)\\1*") || input.toLowerCase().contains("password")
+                    || "0123456789".contains(input) || "9876543210".contains(input)) {
+                System.out.println("Error: That password is too easy to guess.");
             } else {
                 isValid = true;
             }
@@ -354,7 +367,7 @@ public class InputHelper {
                 return null;
             }
 
-            if (input.matches("@[A-Za-z0-9\\-]+(\\.[A-Za-z0-9\\-]+)+")) {
+            if (input.matches("@[A-Za-z0-9]+(-[A-Za-z0-9]+)*(\\.[A-Za-z0-9]+(-[A-Za-z0-9]+)*)+")) {
                 isValid = true;
             } else {
                 System.out.println("Error: The domain must start with @, for example @dlsl.edu.ph");
