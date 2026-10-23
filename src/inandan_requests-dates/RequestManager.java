@@ -413,8 +413,30 @@ public class RequestManager {
 
     private static void approveFront(Admin a, Request front) {
         Venue venue = DataManager.findVenueById(front.getVenueId());
-        if (venue == null) {
-            System.out.println("Error: The venue of this request no longer exists.");
+
+        // the system may have changed while the request waited, so check it again
+        String error = checkVenue(venue, front.getAttendees());
+        User requester = DataManager.findUserById(front.getRequesterId());
+        if (error == null && (requester == null || !requester.isActive())) {
+            error = "Error: The requester's account is no longer active.";
+        }
+        if (error == null && !isUpcoming(front.getDate(), front.getStartTime())) {
+            error = "Error: The requested date and time have already passed.";
+        }
+        String yearStart = DataManager.getSettingString("YEAR_START");
+        String yearEnd = DataManager.getSettingString("YEAR_END");
+        if (error == null && (front.getDate().compareTo(yearStart) < 0 || front.getDate().compareTo(yearEnd) > 0)) {
+            error = "Error: The date is outside the school year (" + yearStart + " to " + yearEnd + ").";
+        }
+        if (error == null && findBlackoutReason(front.getDate()) != null) {
+            error = "Error: That date is now a blackout date (" + findBlackoutReason(front.getDate()) + ").";
+        }
+        if (error == null) {
+            error = checkTimes(front.getStartTime(), front.getEndTime());
+        }
+        if (error != null) {
+            System.out.println(error);
+            System.out.println("This request can no longer be approved. Reject or defer it.");
             return;
         }
 
