@@ -556,12 +556,12 @@ public class RequestManager {
     public static void rescheduleEvent(Admin a) {
         ArrayList<Event> approved = new ArrayList<Event>();
         for (Event e : DataManager.getEvents()) {
-            if (e.getStatus().equals("Approved")) {
+            if (e.getStatus().equals("Approved") && isUpcoming(e.getDate(), e.getStartTime())) {
                 approved.add(e);
             }
         }
         if (approved.size() == 0) {
-            System.out.println("There are no approved events to reschedule.");
+            System.out.println("There are no upcoming approved events to reschedule.");
             return;
         }
 
@@ -602,12 +602,22 @@ public class RequestManager {
             return;
         }
 
-        // checks: not in the past, blackout, hours, duration, capacity, conflict (ignoring itself)
+        // checks: not in the past, school year, max advance, blackout, hours, duration, capacity, conflict (ignoring itself)
+        int lead = 0;
+        if (DateHelper.isValidDate(date)) {
+            lead = DateHelper.toDayNumber(date) - DateHelper.toDayNumber(DateHelper.today());
+        }
+        String yearStart = DataManager.getSettingString("YEAR_START");
+        String yearEnd = DataManager.getSettingString("YEAR_END");
         String error = null;
         if (!DateHelper.isValidDate(date) || !DateHelper.isValidTime(start)) {
             error = "Error: Invalid date or time.";
         } else if (!isUpcoming(date, start)) {
             error = "Error: The new date and time cannot be in the past.";
+        } else if (lead > DataManager.getSettingInt("MAX_ADVANCE_DAYS")) {
+            error = "Error: The date can be at most " + DataManager.getSettingInt("MAX_ADVANCE_DAYS") + " days away.";
+        } else if (date.compareTo(yearStart) < 0 || date.compareTo(yearEnd) > 0) {
+            error = "Error: The date must be inside the school year (" + yearStart + " to " + yearEnd + ").";
         } else if (findBlackoutReason(date) != null) {
             error = "Error: That date is a blackout date (" + findBlackoutReason(date) + ").";
         } else {
@@ -638,6 +648,10 @@ public class RequestManager {
         insertIntoVenueList(newVenue, ev);
         DataManager.saveEvents();
 
+        // the decision stack is cleared below, so this Decision is only a holder for the auto-rejected ids
+        int rejectedCount = autoRejectConflicts(ev, new Decision(ev.getRequestId(), "Approved", ev.getId()), a.getId());
+        DataManager.saveRequests();
+
         String newText = newVenue.getName() + " " + date + " " + start + "-" + end;
         if (req != null) {
             req.setVenueId(newVenue.getId());
@@ -649,6 +663,9 @@ public class RequestManager {
         }
         DataManager.getDecisionStack().clear();
         System.out.println("Event " + ev.getId() + " rescheduled to " + newText + ".");
+        if (rejectedCount > 0) {
+            System.out.println(rejectedCount + " pending request(s) were rejected automatically because they conflict with this event.");
+        }
     }
 
     public static void cancelEvent(Admin a) {
