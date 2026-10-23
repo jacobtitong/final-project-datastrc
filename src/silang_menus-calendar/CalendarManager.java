@@ -72,7 +72,7 @@ public class CalendarManager {
         for (int day = 1; day <= DateHelper.daysInMonth(year, month); day++) {
             String d = prefix + String.format("%02d", day);
             ArrayList<BookingRecord> events = getEventsOn(d);
-            if (events.size() > 0) {
+            if (events.size() > 0 || blackoutReason(d) != null) {
                 printDay(d, events);
                 total += events.size();
             }
@@ -143,8 +143,14 @@ public class CalendarManager {
 
     private static void printDay(String date, ArrayList<BookingRecord> events) {
         System.out.println("\n=== " + date + " (" + dayNames[DateHelper.dayOfWeek(date)] + ") ===");
+        String blackout = blackoutReason(date);
+        if (blackout != null) {
+            System.out.println("BLACKOUT DATE: " + blackout + " (no bookings on this date)");
+        }
         if (events.size() == 0) {
-            System.out.println("No events");
+            if (blackout == null) {
+                System.out.println("No events");
+            }
             return;
         }
         System.out.println("------------------------------------------------------------------------------");
@@ -155,6 +161,16 @@ public class CalendarManager {
                     getRecordId(b), b.getStartTime() + "-" + b.getEndTime(), b.getTitle(),
                     b.getOrganizer(), venueName(b.getVenueId()));
         }
+    }
+
+    // The reason of the blackout on this date, or null when it is not a blackout date
+    private static String blackoutReason(String date) {
+        for (Blackout b : DataManager.getBlackouts()) {
+            if (b.getDate().equals(date)) {
+                return b.getReason();
+            }
+        }
+        return null;
     }
 
     // ===== Event details =====
@@ -181,6 +197,11 @@ public class CalendarManager {
         System.out.println("Title        : " + ev.getTitle());
         System.out.println("Organizer    : " + ev.getOrganizer());
         System.out.println("Organization : " + ev.getOrganization());
+        Request source = DataManager.findRequestById(ev.getRequestId());
+        if (source != null) {
+            System.out.println("Purpose      : " + source.getPurpose());
+            System.out.println("Attendees    : " + source.getAttendees());
+        }
         System.out.println("Venue        : " + venueName(ev.getVenueId()) + " (capacity " + capacity + ")");
         System.out.println("Date         : " + ev.getDate() + " (" + dayNames[DateHelper.dayOfWeek(ev.getDate())] + ")");
         System.out.println("Time         : " + ev.getStartTime() + "-" + ev.getEndTime());

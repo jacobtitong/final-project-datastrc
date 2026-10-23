@@ -97,7 +97,14 @@ public class Requester extends User {
 
     private void showHistory(Request r) {
         System.out.println("\n=== HISTORY OF REQUEST " + r.getId() + " (" + r.getTitle() + ") ===");
-        System.out.println("Status: " + r.getStatus());
+        System.out.println("Title    : " + r.getTitle());
+        System.out.println("Organizer: " + r.getOrganizer());
+        System.out.println("Purpose  : " + r.getPurpose());
+        System.out.println("Attendees: " + r.getAttendees());
+        System.out.println("Venue    : " + CalendarManager.venueName(r.getVenueId()));
+        System.out.println("Date     : " + r.getDate());
+        System.out.println("Time     : " + r.getStartTime() + "-" + r.getEndTime());
+        System.out.println("Status   : " + r.getStatus());
         if (r.getStatus().equals("Rejected")) {
             System.out.println("Reject reason: " + r.getRejectReason());
         }
