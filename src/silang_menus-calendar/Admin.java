@@ -115,6 +115,9 @@ public class Admin extends User {
         if (name == null) {
             return;
         }
+        if (venueNameTaken(name, 0)) {
+            return;
+        }
         int capacity = InputHelper.getValidInt("Capacity (1-5000): ", 1, 5000);
         if (capacity == -1) {
             return;
@@ -146,8 +149,14 @@ public class Admin extends User {
         if (name == null) {
             return;
         }
+        if (venueNameTaken(name, venue.getId())) {
+            return;
+        }
         int capacity = InputHelper.getValidInt("New capacity (1-5000): ", 1, 5000);
         if (capacity == -1) {
+            return;
+        }
+        if (capacityTooSmall(venue, capacity)) {
             return;
         }
         String details = InputHelper.getValidText("New details (2-100 characters): ", 2, 100);
@@ -160,6 +169,58 @@ public class Admin extends User {
         venue.setDetails(details);
         DataManager.saveVenues();
         System.out.println("Venue updated.");
+
+        // waiting requests that no longer fit the smaller hall are rejected
+        int rejected = rejectPending("The venue capacity was reduced.", venue.getId(), null, capacity + 1);
+        if (rejected > 0) {
+            System.out.println(rejected + " pending request(s) were rejected because they no longer fit.");
+        }
+    }
+
+    // Venue names must be unique (ignoring case); ownId is the venue being edited, or 0 when adding
+    private boolean venueNameTaken(String name, int ownId) {
+        for (Venue v : DataManager.getVenues()) {
+            if (v.getId() != ownId && v.getName().equalsIgnoreCase(name)) {
+                System.out.println("Error: A venue named \"" + v.getName() + "\" already exists (ID " + v.getId() + ").");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // The capacity cannot drop below the attendees of an upcoming Approved event in this venue
+    private boolean capacityTooSmall(Venue venue, int capacity) {
+        int todayNumber = DateHelper.toDayNumber(DateHelper.today());
+        for (Event e : venue.getApprovedEvents()) {
+            Request r = DataManager.findRequestById(e.getRequestId());
+            if (r != null && r.getAttendees() > capacity && DateHelper.toDayNumber(e.getDate()) >= todayNumber) {
+                System.out.println("Error: \"" + e.getTitle() + "\" on " + e.getDate() + " has " + r.getAttendees()
+                        + " attendees. The capacity cannot be below that.");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Rejects every waiting request that matches the venue (0 = any), the date (null = any) and
+    // has at least minAttendees. Clears the undo stack because the scheduling state changed.
+    private int rejectPending(String reason, int venueId, String date, int minAttendees) {
+        int count = 0;
+        for (Request p : DataManager.getQueue().toArrayList()) {
+            if ((venueId == 0 || p.getVenueId() == venueId) && (date == null || p.getDate().equals(date))
+                    && p.getAttendees() >= minAttendees) {
+                p.setStatus("Rejected");
+                p.setRejectReason(reason);
+                DataManager.getQueue().remove(p.getId());
+                DataManager.addStatusLog(p.getId(), "Pending", "Rejected", getId(), reason);
+                count++;
+            }
+        }
+        if (count > 0) {
+            DataManager.saveRequests();
+        }
+        DataManager.getDecisionStack().clear();
+        return count;
     }
 
     private void removeVenue() {
@@ -198,6 +259,11 @@ public class Admin extends User {
         venue.setActive(false);
         DataManager.saveVenues();
         System.out.println(venue.getName() + " is removed. It can no longer be booked.");
+
+        int rejected = rejectPending("The venue was removed.", venue.getId(), null, 0);
+        if (rejected > 0) {
+            System.out.println(rejected + " pending request(s) for this venue were rejected.");
+        }
     }
 
     private void printVenueTable(ArrayList<Venue> list) {
@@ -258,7 +324,7 @@ public class Admin extends User {
         if (date == null) {
             return;
         }
-        if (hasApprovedEvent(date)) {
+        if (hasApprovedEvent(date) || blackoutTaken(date, 0)) {
             return;
         }
         String reason = InputHelper.getValidText("Reason (5-100 characters): ", 5, 100);
@@ -269,6 +335,7 @@ public class Admin extends User {
         DataManager.getBlackouts().add(new Blackout(DataManager.generateId(), date, reason));
         DataManager.saveBlackouts();
         System.out.println("Blackout date added.");
+        rejectForBlackout(date);
     }
 
     private void editBlackout() {
@@ -288,7 +355,7 @@ public class Admin extends User {
         if (date == null) {
             return;
         }
-        if (hasApprovedEvent(date)) {
+        if (hasApprovedEvent(date) || blackoutTaken(date, blackout.getId())) {
             return;
         }
         String reason = InputHelper.getValidText("New reason (5-100 characters): ", 5, 100);
@@ -300,6 +367,7 @@ public class Admin extends User {
         blackout.setReason(reason);
         DataManager.saveBlackouts();
         System.out.println("Blackout date updated.");
+        rejectForBlackout(date);
     }
 
     private void removeBlackout() {
@@ -322,6 +390,24 @@ public class Admin extends User {
         DataManager.getBlackouts().remove(number - 1);
         DataManager.saveBlackouts();
         System.out.println("Blackout date removed.");
+    }
+
+    // Each date can be a blackout only once; ownId is the blackout being edited, or 0 when adding
+    private boolean blackoutTaken(String date, int ownId) {
+        for (Blackout b : DataManager.getBlackouts()) {
+            if (b.getId() != ownId && b.getDate().equals(date)) {
+                System.out.println("Error: " + date + " is already a blackout date (" + b.getReason() + ").");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void rejectForBlackout(String date) {
+        int rejected = rejectPending("The date became a blackout date.", 0, date, 0);
+        if (rejected > 0) {
+            System.out.println(rejected + " pending request(s) on " + date + " were rejected.");
+        }
     }
 
     // A blackout cannot be set on a date that has an Approved event

@@ -9,9 +9,14 @@ public class ReportManager {
 
         for (Event e : DataManager.getEvents()) {
             if (e.getStatus().equals("Approved")) {
-                tally(venueNames, venueCounts, CalendarManager.venueName(e.getVenueId()));
+                tally(venueNames, venueCounts, String.valueOf(e.getVenueId()));
                 tally(orgNames, orgCounts, e.getOrganization());
             }
+        }
+
+        // venues were tallied by id so two venues with the same name stay apart
+        for (int i = 0; i < venueNames.size(); i++) {
+            venueNames.set(i, CalendarManager.venueName(Integer.parseInt(venueNames.get(i))));
         }
 
         System.out.println("\n=== SUMMARY REPORT ===");
