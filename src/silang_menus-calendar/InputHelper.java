@@ -211,6 +211,8 @@ public class InputHelper {
                 System.out.println("Error: The password cannot contain spaces or tabs.");
             } else if (input.contains(";")) {
                 System.out.println("Error: The password cannot contain a semicolon.");
+            } else if (!input.matches(".*[A-Za-z].*") || !input.matches(".*[0-9].*")) {
+                System.out.println("Error: The password must contain at least one letter and one digit.");
             } else if (input.equals(idNumber)) {
                 System.out.println("Error: The password cannot be the same as your ID number.");
             } else if (input.matches("(.)\\1*") || input.toLowerCase().contains("password")

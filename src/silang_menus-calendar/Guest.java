@@ -64,7 +64,7 @@ public class Guest extends User {
         String password = "";
         boolean passwordOk = false;
         while (!passwordOk) {
-            password = InputHelper.getValidPassword("Password (at least " + DataManager.getSettingInt("MIN_PASSWORD") + " characters, no spaces): ", idNumber);
+            password = InputHelper.getValidPassword("Password (at least " + DataManager.getSettingInt("MIN_PASSWORD") + " characters, with a letter and a digit, no spaces): ", idNumber);
             if (password == null) {
                 return;
             }

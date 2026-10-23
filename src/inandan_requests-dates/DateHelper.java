@@ -38,7 +38,7 @@ public class DateHelper {
         int y = Integer.parseInt(d.substring(0, 4));
         int m = Integer.parseInt(d.substring(5, 7));
         int day = Integer.parseInt(d.substring(8, 10));
-        if (y < 1900 || y > 2100) {
+        if (y < 1970 || y > 2100) {
             return false;
         }
         if (m < 1 || m > 12) {
