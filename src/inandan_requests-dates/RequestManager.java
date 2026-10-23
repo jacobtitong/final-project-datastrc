@@ -184,8 +184,14 @@ public class RequestManager {
         System.out.println("Request " + req.getId() + " updated. It keeps its place in the queue.");
     }
 
-    // Asks every detail, then runs checks 2-6; true = the form fields are ready to use
+    // Asks every detail and re-asks a field when it breaks a rule; true = the form fields are ready to use
     private static boolean askDetails(Requester r, int ignoreRequestId) {
+        ArrayList<Venue> venues = getActiveVenues();
+        if (venues.size() == 0) {
+            System.out.println("Error: No venues are available. Ask the Admin to add one.");
+            return false;
+        }
+
         formTitle = InputHelper.getValidText("Event title (3-60 characters): ", 3, 60);
         if (formTitle == null) {
             return cancelled();
@@ -211,17 +217,29 @@ public class RequestManager {
             return cancelled();
         }
 
-        ArrayList<Venue> venues = getActiveVenues();
-        if (venues.size() == 0) {
-            System.out.println("Error: No venues are available. Ask the Admin to add one.");
-            return false;
-        }
         printVenueList(venues);
-        int venueNumber = InputHelper.getValidInt("--> Venue number: ", 1, venues.size());
-        if (venueNumber == -1) {
-            return cancelled();
+        formVenue = null;
+        while (formVenue == null) {
+            int venueNumber = InputHelper.getValidInt("--> Venue number: ", 1, venues.size());
+            if (venueNumber == -1) {
+                return cancelled();
+            }
+            Venue pick = venues.get(venueNumber - 1);
+            String error = checkVenue(pick, formAttendees);
+            while (error != null && pick != null) {
+                System.out.println(error);
+                if (InputHelper.getYesNo("Enter a different number of attendees? (Y/N): ")) {
+                    formAttendees = InputHelper.getValidInt("Expected number of attendees: ", 1, 5000);
+                    if (formAttendees == -1) {
+                        return cancelled();
+                    }
+                    error = checkVenue(pick, formAttendees);
+                } else {
+                    pick = null;
+                }
+            }
+            formVenue = pick;
         }
-        formVenue = venues.get(venueNumber - 1);
 
         if (!askDateAndTimes()) {
             return false;
@@ -229,22 +247,12 @@ public class RequestManager {
 
         boolean done = false;
         while (!done) {
-            String error = checkDate(formDate);
-            if (error == null) {
-                error = checkTimes(formStart, formEnd);
-            }
-            if (error == null && !isUpcoming(formDate, formStart)) {
-                error = "Error: The start time has already passed.";
-            }
-            if (error == null) {
-                error = checkVenue(formVenue, formAttendees);
-            }
-            if (error == null && hasDuplicate(r.getId(), formVenue.getId(), formDate, formStart, formEnd, ignoreRequestId)) {
-                error = "Error: You already have a pending or approved request for this venue, date and time.";
-            }
-            if (error != null) {
-                System.out.println(error);
-                return false;
+            if (hasDuplicate(r.getId(), formVenue.getId(), formDate, formStart, formEnd, ignoreRequestId)) {
+                System.out.println("Error: You already have a pending or approved request for this venue, date and time.");
+                if (!askDateAndTimes()) {
+                    return false;
+                }
+                continue;
             }
 
             int startMin = DateHelper.toMinutes(formStart);
@@ -266,18 +274,44 @@ public class RequestManager {
         return true;
     }
 
+    // Asks the date and times, re-asking only the part that breaks a rule; false = cancelled
     private static boolean askDateAndTimes() {
-        formDate = InputHelper.getValidDate("Date (YYYY-MM-DD): ");
-        if (formDate == null) {
-            return cancelled();
-        }
-        formStart = InputHelper.getValidTime("Start time (HH:MM, 24-hour): ");
-        if (formStart == null) {
-            return cancelled();
-        }
-        formEnd = InputHelper.getValidTime("End time (HH:MM, 24-hour): ");
-        if (formEnd == null) {
-            return cancelled();
+        boolean ok = false;
+        while (!ok) {
+            String error = "x";
+            while (error != null) {
+                formDate = InputHelper.getValidDate("Date (YYYY-MM-DD): ");
+                if (formDate == null) {
+                    return cancelled();
+                }
+                error = checkDate(formDate);
+                if (error != null) {
+                    System.out.println(error);
+                }
+            }
+
+            error = "x";
+            while (error != null) {
+                formStart = InputHelper.getValidTime("Start time (HH:MM, 24-hour): ");
+                if (formStart == null) {
+                    return cancelled();
+                }
+                formEnd = InputHelper.getValidTime("End time (HH:MM, 24-hour): ");
+                if (formEnd == null) {
+                    return cancelled();
+                }
+                error = checkTimes(formStart, formEnd);
+                if (error != null) {
+                    System.out.println(error);
+                }
+            }
+
+            // the times are fine; a start time that has passed means the date must change too
+            if (isUpcoming(formDate, formStart)) {
+                ok = true;
+            } else {
+                System.out.println("Error: The start time has already passed.");
+            }
         }
         return true;
     }
