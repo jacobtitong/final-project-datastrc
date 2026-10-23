@@ -49,6 +49,9 @@ public class DateHelper {
     }
 
     public static int toMinutes(String t) {
+        if (!isValidTime(t)) {
+            return 0;
+        }
         int hours = Integer.parseInt(t.substring(0, 2));
         int minutes = Integer.parseInt(t.substring(3, 5));
         return hours * 60 + minutes;
@@ -60,6 +63,9 @@ public class DateHelper {
 
     // Days since 2000-01-01 (day 0); dates before the year 2000 give negative numbers
     public static int toDayNumber(String d) {
+        if (!isValidDate(d)) {
+            return 0;
+        }
         int year = Integer.parseInt(d.substring(0, 4));
         int month = Integer.parseInt(d.substring(5, 7));
         int day = Integer.parseInt(d.substring(8, 10));

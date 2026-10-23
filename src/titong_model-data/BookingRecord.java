@@ -31,6 +31,7 @@ public abstract class BookingRecord {
 
     public void setTitle(String title) { this.title = title; }
     public void setOrganizer(String organizer) { this.organizer = organizer; }
+    public void setOrganization(String organization) { this.organization = organization; }
     public void setVenueId(int venueId) { this.venueId = venueId; }
     public void setDate(String date) { this.date = date; }
     public void setStartTime(String startTime) { this.startTime = startTime; }

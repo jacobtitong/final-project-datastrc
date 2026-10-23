@@ -24,8 +24,8 @@ public class Admin extends User {
             System.out.print("\n=== ADMIN MENU ===");
             System.out.print("\n1 - Review queue\n2 - Undo last decision\n3 - View, search, filter and sort all records\n"
                     + "4 - Reschedule an event\n5 - Cancel an event\n6 - Venues\n7 - Blackout dates\n8 - Settings\n"
-                    + "9 - Deactivate a user\n10 - Summary report\n11 - Calendar views\n0 - Logout\n");
-            int option = InputHelper.getValidInt("--> Option: ", 0, 11);
+                    + "9 - Deactivate a user\n10 - Summary report\n11 - Calendar views\n12 - Edit profile\n0 - Logout\n");
+            int option = InputHelper.getValidInt("--> Option: ", 0, 12);
 
             switch (option) {
                 case 1:
@@ -61,13 +61,16 @@ public class Admin extends User {
                 case 11:
                     CalendarManager.showCalendarMenu();
                     break;
+                case 12:
+                    editProfile();
+                    break;
                 case 0:
                     System.out.println("Logged out.");
                     next = new Guest();
                     leave = true;
                     break;
                 default:
-                    System.out.println("Error: Invalid option. Please choose 0-11.");
+                    System.out.println("Error: Invalid option. Please choose 0-12.");
             }
         }
         return next;
@@ -430,5 +433,72 @@ public class Admin extends User {
             DataManager.setSetting(key, "" + value);
         }
         System.out.println("Setting updated.");
+    }
+
+    // ===== Profile =====
+
+    private void editProfile() {
+        boolean back = false;
+
+        while (!back) {
+            System.out.println("\n=== EDIT PROFILE ===");
+            System.out.println("Name         : " + getName());
+            System.out.println("ID number    : " + getIdNumber());
+            System.out.println("Email        : " + getEmail());
+            System.out.println("Type         : " + getType());
+            System.out.println("Organization : " + getOrganization());
+            System.out.print("\n1 - Change name\n2 - Change email\n3 - Change password\n0 - Back\n");
+            int option = InputHelper.getValidInt("--> Option: ", 0, 3);
+
+            switch (option) {
+                case 1:
+                    String name = InputHelper.getValidName("New name (2-40 characters): ");
+                    if (name != null) {
+                        setName(name);
+                        DataManager.saveUsers();
+                        System.out.println("Name updated.");
+                    }
+                    break;
+                case 2:
+                    String email = InputHelper.getValidEmail("New email (name" + DataManager.getSettingString("EMAIL_DOMAIN") + "): ");
+                    if (email != null) {
+                        setEmail(email);
+                        DataManager.saveUsers();
+                        System.out.println("Email updated.");
+                    }
+                    break;
+                case 3:
+                    changePassword();
+                    break;
+                case 0:
+                    back = true;
+                    break;
+                default:
+                    System.out.println("Error: Invalid option. Please choose 0-3.");
+            }
+        }
+    }
+
+    private void changePassword() {
+        boolean passwordOk = false;
+
+        while (!passwordOk) {
+            String password = InputHelper.getValidPassword("New password: ", getIdNumber());
+            if (password == null) {
+                return;
+            }
+            String confirm = InputHelper.getRequiredLine("Confirm new password: ");
+            if (confirm == null) {
+                return;
+            }
+            if (confirm.equals(password)) {
+                setPassword(password);
+                DataManager.saveUsers();
+                System.out.println("Password updated.");
+                passwordOk = true;
+            } else {
+                System.out.println("Error: The passwords do not match. Try again.");
+            }
+        }
     }
 }

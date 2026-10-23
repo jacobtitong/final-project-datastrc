@@ -172,6 +172,7 @@ public class RequestManager {
 
         req.setTitle(formTitle);
         req.setOrganizer(formOrganizer);
+        req.setOrganization(r.getOrganization());
         req.setPurpose(formPurpose);
         req.setAttendees(formAttendees);
         req.setVenueId(formVenue.getId());

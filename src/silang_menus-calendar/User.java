@@ -33,6 +33,7 @@ public abstract class User {
     public boolean isActive() { return active; }
 
     public void setName(String name) { this.name = name; }
+    public void setEmail(String email) { this.email = email; }
     public void setPassword(String password) { this.password = password; }
     public void setType(String type) { this.type = type; }
     public void setOrganization(String organization) { this.organization = organization; }

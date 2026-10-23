@@ -84,8 +84,8 @@ public class Requester extends User {
         for (int i = 0; i < mine.size(); i++) {
             Request r = (Request) mine.get(i);
             System.out.printf("%-4d | %-6d | %-25.25s | %-15.15s | %-10s | %-11s | %-9s%n",
-                    i + 1, r.getId(), r.getTitle(), CalendarManager.venueName(r.getVenueId()), r.getDate(),
-                    r.getStartTime() + "-" + r.getEndTime(), r.getStatus());
+                i + 1, r.getId(), r.getTitle(), CalendarManager.venueName(r.getVenueId()), r.getDate(),
+                r.getStartTime() + "-" + r.getEndTime(), r.getStatus());
         }
 
         int number = InputHelper.getValidInt("--> Request number to see its history (or 'back'): ", 1, mine.size());
@@ -140,8 +140,17 @@ public class Requester extends User {
                 case 1:
                     String name = InputHelper.getValidName("New name (2-40 characters): ");
                     if (name != null) {
+                        String oldName = getName();
                         setName(name);
                         DataManager.saveUsers();
+                        for (Request q : DataManager.getRequests()) {
+                            if (q.getRequesterId() == getId() && q.getStatus().equals("Pending")) {
+                                if (q.getOrganizer().equals(oldName)) {
+                                    q.setOrganizer(name);
+                                }
+                            }
+                        }
+                        DataManager.saveRequests();
                         System.out.println("Name updated.");
                     }
                     break;
@@ -158,6 +167,12 @@ public class Requester extends User {
                     if (organization != null) {
                         setOrganization(organization);
                         DataManager.saveUsers();
+                        for (Request q : DataManager.getRequests()) {
+                            if (q.getRequesterId() == getId() && q.getStatus().equals("Pending")) {
+                                q.setOrganization(organization);
+                            }
+                        }
+                        DataManager.saveRequests();
                         System.out.println("Organization updated.");
                     }
                     break;
