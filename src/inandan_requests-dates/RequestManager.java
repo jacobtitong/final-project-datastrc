@@ -58,17 +58,26 @@ public class RequestManager {
         int duration = endMin - startMin;
         ArrayList<Event> dayEvents = getDayEvents(venue, date);
 
-        // candidate starts: opening time, and the end of each event plus the buffer
+        // today, a slot must start after the current time
+        boolean today = date.equals(DateHelper.today());
+        int now = DateHelper.nowMinutes();
+
+        // candidate starts: opening time (or just after now), and for each event the slot
+        // right after it (end plus buffer) and the slot right before it (start minus buffer minus duration)
         ArrayList<Integer> candidates = new ArrayList<Integer>();
         candidates.add(open);
+        if (today) {
+            candidates.add(now + 1);
+        }
         for (Event e : dayEvents) {
             candidates.add(e.getEndMinutes() + buffer);
+            candidates.add(e.getStartMinutes() - buffer - duration);
         }
 
         int best = -1;
         for (int i = 0; i < candidates.size(); i++) {
             int c = candidates.get(i);
-            boolean fits = c + duration <= close;
+            boolean fits = c >= open && c + duration <= close && !(today && c <= now);
             for (Event e : dayEvents) {
                 boolean endedBefore = e.getEndMinutes() + buffer <= c;
                 boolean startsAfter = c + duration + buffer <= e.getStartMinutes();
