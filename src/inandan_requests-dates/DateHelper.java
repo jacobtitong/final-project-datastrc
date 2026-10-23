@@ -66,7 +66,8 @@ public class DateHelper {
 
     // Days since 2000-01-01 (day 0); dates before the year 2000 give negative numbers
     public static int toDayNumber(String d) {
-        if (!isValidDate(d)) {
+        // format check only: the week view can step just outside the 1970-2100 range of isValidDate
+        if (d == null || !d.matches("\\d{4}-\\d{2}-\\d{2}")) {
             return 0;
         }
         int year = Integer.parseInt(d.substring(0, 4));

@@ -539,6 +539,16 @@ public class Admin extends User {
         System.out.println("Setting updated.");
     }
 
+    // True when the number is inside the range the Settings menu allows (also used when settings.txt is loaded)
+    public static boolean isAllowedNumber(String key, int value) {
+        for (int i = 0; i < settingKeys.length; i++) {
+            if (settingKeys[i].equals(key)) {
+                return value >= settingMins[i] && value <= settingMaxs[i];
+            }
+        }
+        return value >= 0;
+    }
+
     // ===== Profile =====
 
     private void editProfile() {

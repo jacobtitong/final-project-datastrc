@@ -138,7 +138,7 @@ public class DataManager {
                 || key.equals("MIN_PASSWORD") || key.equals("ID_DIGITS")) {
             try {
                 int val = Integer.parseInt(value);
-                return val >= 0;
+                return Admin.isAllowedNumber(key, val);
             } catch (NumberFormatException e) {
                 return false;
             }
@@ -173,6 +173,18 @@ public class DataManager {
         if (getSettingInt("MIN_DURATION_MIN") > getSettingInt("MAX_DURATION_MIN")) {
             setSetting("MIN_DURATION_MIN", "60");
             setSetting("MAX_DURATION_MIN", "480");
+        }
+        // same cross-checks as the Settings menu, so a hand-edited file cannot make every booking impossible
+        if (DateHelper.toMinutes(getSettingString("CLOSE_TIME")) - DateHelper.toMinutes(getSettingString("OPEN_TIME"))
+                < getSettingInt("MIN_DURATION_MIN")) {
+            setSetting("OPEN_TIME", "07:00");
+            setSetting("CLOSE_TIME", "18:00");
+            setSetting("MIN_DURATION_MIN", "60");
+            setSetting("MAX_DURATION_MIN", "480");
+        }
+        if (getSettingInt("MIN_LEAD_DAYS") > getSettingInt("MAX_ADVANCE_DAYS")) {
+            setSetting("MIN_LEAD_DAYS", "7");
+            setSetting("MAX_ADVANCE_DAYS", "180");
         }
         saveSettings();
     }
