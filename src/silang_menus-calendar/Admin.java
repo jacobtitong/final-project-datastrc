@@ -392,6 +392,11 @@ public class Admin extends User {
                 System.out.println("Error: The opening time must be before the closing time.");
                 return;
             }
+            if (DateHelper.toMinutes(close) - DateHelper.toMinutes(open) < DataManager.getSettingInt("MIN_DURATION_MIN")) {
+                System.out.println("Error: The operating hours must be at least as long as the minimum duration ("
+                        + DataManager.getSettingInt("MIN_DURATION_MIN") + " minutes).");
+                return;
+            }
             DataManager.setSetting(key, time);
         } else if (index == 10) {
             String domain = InputHelper.getValidDomain("New " + key + " (starts with @): ");
@@ -426,8 +431,21 @@ public class Admin extends User {
                 System.out.println("Error: The minimum duration cannot be above the maximum duration.");
                 return;
             }
+            if (index == 2 && value > DateHelper.toMinutes(DataManager.getSettingString("CLOSE_TIME"))
+                    - DateHelper.toMinutes(DataManager.getSettingString("OPEN_TIME"))) {
+                System.out.println("Error: The minimum duration cannot be longer than the operating hours.");
+                return;
+            }
             if (index == 3 && value < DataManager.getSettingInt("MIN_DURATION_MIN")) {
                 System.out.println("Error: The maximum duration cannot be below the minimum duration.");
+                return;
+            }
+            if (index == 4 && value > DataManager.getSettingInt("MAX_ADVANCE_DAYS")) {
+                System.out.println("Error: The minimum lead days cannot be above the maximum advance days.");
+                return;
+            }
+            if (index == 5 && value < DataManager.getSettingInt("MIN_LEAD_DAYS")) {
+                System.out.println("Error: The maximum advance days cannot be below the minimum lead days.");
                 return;
             }
             DataManager.setSetting(key, "" + value);
